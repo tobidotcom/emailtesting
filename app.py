@@ -19,28 +19,11 @@ if "smtp_configs" not in st.session_state:
 if "domain_data" not in st.session_state:
     st.session_state.domain_data = []
 
-# Initialize business details
-if "business_details" not in st.session_state:
-    st.session_state.business_details = {
-        "name": "",
-        "website": "",
-        "description": "",
-        "industry": "",
-        "location": "",
-        "contact_name": "",
-        "contact_phone": "",
-        "contact_email": ""
-    }
-
-st.sidebar.text_input("Your Name", key="user_name")
-
 def show_settings():
     st.sidebar.title("Settings")
     openai_api_key = st.sidebar.text_input("OpenAI API Key", st.session_state.openai_api_key, type="password")
     if openai_api_key != st.session_state.openai_api_key:
         st.session_state.openai_api_key = openai_api_key
-        import openai
-        openai.api_key = st.session_state.openai_api_key
 
     st.sidebar.subheader("SMTP Configurations")
     smtp_configs = st.session_state.smtp_configs.copy()
@@ -76,28 +59,6 @@ def show_settings():
             "sender_email": ""
         })
 
-    st.sidebar.subheader("Business Details")
-    business_name = st.sidebar.text_input("Business Name", st.session_state.business_details["name"])
-    business_website = st.sidebar.text_input("Business Website", st.session_state.business_details["website"])
-    business_description = st.sidebar.text_area("Business Description", st.session_state.business_details["description"])
-    business_industry = st.sidebar.text_input("Business Industry", st.session_state.business_details["industry"])
-    business_location = st.sidebar.text_input("Business Location", st.session_state.business_details["location"])
-    business_contact_name = st.sidebar.text_input("Contact Name", st.session_state.business_details["contact_name"])
-    business_contact_phone = st.sidebar.text_input("Contact Phone", st.session_state.business_details["contact_phone"])
-    business_contact_email = st.sidebar.text_input("Contact Email", st.session_state.business_details["contact_email"])
-
-    # Store the business details in the session state
-    st.session_state.business_details = {
-        "name": business_name,
-        "website": business_website,
-        "description": business_description,
-        "industry": business_industry,
-        "location": business_location,
-        "contact_name": business_contact_name,
-        "contact_phone": business_contact_phone,
-        "contact_email": business_contact_email
-    }
-
 st.set_page_config(page_title="Domain Scraper", layout="wide")
 show_settings()
 
@@ -131,7 +92,7 @@ def scrape_domains(domains):
             emails.update(re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", response.text))
 
             # Method 2: mailto: links
-            mailto_links = soup.find_all("a", href=re.compile(r"mailto:"), string=re.compile(r"mailto:"))
+            mailto_links = soup.find_all("a", href=re.compile(r"mailto:"))
             emails.update([link.get("href").replace("mailto:", "") for link in mailto_links])
 
             # Method 3: Text content of HTML elements
@@ -159,7 +120,7 @@ def scrape_domains(domains):
             emails = list(emails)
 
             # Generate personalized outreach using OpenAI API
-            prompt = f"Based on the following information about the website {domain_name}:\n\nTitle: {page_title}\nDescription: {meta_description}\nMain Text: {main_text[:500]}...\n\nAnd the following details about our business:\n\nBusiness Name: {st.session_state.business_details['name']}\nBusiness Website: {st.session_state.business_details['website']}\nBusiness Description: {st.session_state.business_details['description']}\nBusiness Industry: {st.session_state.business_details['industry']}\nBusiness Location: {st.session_state.business_details['location']}\nUser Name: {st.session_state.user_name}\n\nCraft a personalized email outreach for a backlink opportunity. The email should be friendly, engaging, and highlight the relevance of the website's content to our business. Keep the email concise and actionable."
+            prompt = f"Based on the following information about the website {domain_name}:\n\nTitle: {page_title}\nDescription: {meta_description}\nMain Text: {main_text[:500]}...\n\nCraft a personalized email outreach for a backlink opportunity. The email should be friendly, engaging, and highlight the relevance of the website's content to our business. Keep the email concise and actionable."
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {st.session_state.openai_api_key}"
@@ -176,18 +137,23 @@ def scrape_domains(domains):
             response.raise_for_status()
             outreach_email = response.json()["choices"][0]["message"]["content"].strip()
 
-            # Ask OpenAI to suggest the best email for outreach and generate an email signature
-            email_prompt = f"Here are the email addresses found on the website {domain_name}:\n\n{', '.join(emails)}\n\nBased on the website content and the personalized outreach email, which email address would be the most appropriate to send the outreach to? Please also generate a suitable email signature based on the provided business details, including the contact name, phone number, and email address."
-            data["messages"].append({"role": "user", "content": email_prompt})
-            data["messages"].append({"role": "assistant", "content": outreach_email})
-            email_response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
+            # Ask OpenAI to suggest the best email for outreach
+            email_prompt = f"Here are the email addresses found on the website {domain_name}:\n\n{', '.join(emails)}\n\nBased on the website content and the personalized outreach email, which email address would be the most appropriate to send the outreach to? Please make sure to only respond with the suggested email, nothing else!"
+            email_data = {
+                "model": "gpt-3.5-turbo",
+                "messages": [{"role": "user", "content": email_prompt}, {"role": "assistant", "content": outreach_email}],
+                "max_tokens": 100,
+                "n": 1,
+                "stop": None,
+                "temperature": 0.7
+            }
+            email_response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=email_data)
             email_response.raise_for_status()
-            response_content = email_response.json()["choices"][0]["message"]["content"].strip()
-            suggested_email, email_signature = response_content.split("\n\n", 1)
+            suggested_email = email_response.json()["choices"][0]["message"]["content"].strip()
 
             domain_data.append({
                 "domain": domain_name,
-                "outreach_email": outreach_email + "\n\n" + email_signature,
+                "outreach_email": outreach_email,
                 "suggested_email": suggested_email
             })
         except requests.exceptions.RequestException as e:
@@ -230,15 +196,18 @@ def send_outreach_email(domain_data, outreach_subject, outreach_email, selected_
             msg['Subject'] = outreach_subject
             msg['From'] = smtp_config["sender_email"]
             msg['To'] = selected_email
-
             smtp.send_message(msg)
-            st.success(f"Outreach email sent successfully to {selected_email} using {smtp_config['server']}")
             success_count += 1
-        except Exception as e:
-            st.error(f"Error sending outreach email using {smtp_config['server']}: {e}")
 
-    if success_count == 0:
-        st.warning("Outreach email could not be sent using any of the configured SMTP servers.")
+            smtp.quit()
+            st.success(f"Email sent successfully using SMTP configuration: {smtp_config['server']}, {smtp_config['username']}")
+        except smtplib.SMTPAuthenticationError:
+            st.warning(f"Authentication failed for SMTP configuration: {smtp_config['server']}, {smtp_config['username']}")
+        except Exception as e:
+            st.error(f"Error sending email with SMTP configuration {smtp_config['server']}, {smtp_config['username']}: {e}")
+
+    if success_count > 0:
+        st.success(f"Email sent successfully!")
 
 if st.button("Scrape Domains"):
     st.session_state.domain_data = scrape_domains(domains)
