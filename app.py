@@ -31,12 +31,12 @@ if "user_info" not in st.session_state:
     }
 
 def show_settings():
-    st.sidebar.title("Settings")
+    st.sidebar.title("⚙️ Settings")
     openai_api_key = st.sidebar.text_input("OpenAI API Key", st.session_state.openai_api_key, type="password")
     if openai_api_key != st.session_state.openai_api_key:
         st.session_state.openai_api_key = openai_api_key
 
-    st.sidebar.subheader("User Information")
+    st.sidebar.subheader("👤 User Information")
     st.session_state.user_info["name"] = st.sidebar.text_input("Name", st.session_state.user_info["name"])
     st.session_state.user_info["business_name"] = st.sidebar.text_input("Business Name", st.session_state.user_info["business_name"])
     st.session_state.user_info["website"] = st.sidebar.text_input("Website", st.session_state.user_info["website"])
@@ -44,7 +44,7 @@ def show_settings():
     st.session_state.user_info["email"] = st.sidebar.text_input("Email", st.session_state.user_info["email"])
     st.session_state.user_info["phone_number"] = st.sidebar.text_input("Phone Number", st.session_state.user_info["phone_number"])
 
-    st.sidebar.subheader("SMTP Configurations")
+    st.sidebar.subheader("📧 SMTP Configurations")
     smtp_configs = st.session_state.smtp_configs.copy()
     for i, config in enumerate(smtp_configs):
         with st.sidebar.expander(f"Configuration {i+1}"):
@@ -62,14 +62,14 @@ def show_settings():
                         smtp.starttls()
                     smtp.login(config["username"], config["password"])
                     smtp.quit()
-                    st.success(f"Configuration {i+1} is valid.")
+                    st.success(f"✅ Configuration {i+1} is valid.")
                 except smtplib.SMTPAuthenticationError:
-                    st.error(f"Authentication failed for Configuration {i+1}.")
+                    st.error(f"❌ Authentication failed for Configuration {i+1}.")
                 except Exception as e:
-                    st.error(f"Error checking Configuration {i+1}: {e}")
+                    st.error(f"❌ Error checking Configuration {i+1}: {e}")
     st.session_state.smtp_configs = smtp_configs
 
-    if st.sidebar.button("Add SMTP Configuration"):
+    if st.sidebar.button("➕ Add SMTP Configuration"):
         st.session_state.smtp_configs.append({
             "server": "",
             "port": 587,
@@ -78,10 +78,20 @@ def show_settings():
             "sender_email": ""
         })
 
-st.set_page_config(page_title="Domain Scraper", layout="wide")
+st.set_page_config(page_title="Domain Scraper", page_icon="🌐", layout="wide")
+st.markdown("""
+<style>
+.css-18e3th9 {
+    padding-top: 1rem;
+    padding-bottom: 10rem;
+    background-color: #e6f2ff;
+}
+</style>
+""", unsafe_allow_html=True)
+
 show_settings()
 
-st.title("Domain Scraper with Email Extraction and Personalized Outreach")
+st.title("🔍 Domain Scraper with Email Extraction and Personalized Outreach")
 
 domains = st.text_area("Enter domains (one per line)")
 
@@ -133,7 +143,7 @@ def scrape_domains(domains):
                     contact_soup = BeautifulSoup(contact_response.text, "html.parser")
                     emails.update(re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", contact_soup.get_text()))
                 except Exception as e:
-                    st.warning(f"Error retrieving contact page for {domain_name}: {e}")
+                    st.warning(f"⚠️ Error retrieving contact page for {domain_name}: {e}")
 
             # Convert the set to a list
             emails = list(emails)
@@ -176,10 +186,10 @@ def scrape_domains(domains):
                 "suggested_email": suggested_email
             })
         except requests.exceptions.RequestException as e:
-            st.error(f"Error scraping data for {domain}: {e}")
+            st.error(f"❌ Error scraping data for {domain}: {e}")
             logging.error(f"Error scraping {domain}: {e}")
         except Exception as e:
-            st.error(f"Error scraping data for {domain}: {e}")
+            st.error(f"❌ Error scraping data for {domain}: {e}")
             logging.error(f"Error scraping {domain}: {e}")
 
     return domain_data
@@ -196,7 +206,7 @@ def show_domain_data():
                 if send_email:
                     send_outreach_email(data, outreach_subject, outreach_email, selected_email)
     else:
-        st.warning("No domain data available. Please scrape some domains first.")
+        st.warning("⚠️ No domain data available. Please scrape some domains first.")
 
 def send_outreach_email(domain_data, outreach_subject, outreach_email, selected_email):
     success_count = 0
@@ -219,16 +229,16 @@ def send_outreach_email(domain_data, outreach_subject, outreach_email, selected_
             success_count += 1
 
             smtp.quit()
-            st.success(f"Email sent successfully using SMTP configuration: {smtp_config['server']}, {smtp_config['username']}")
+            st.success(f"✅ Email sent successfully using SMTP configuration: {smtp_config['server']}, {smtp_config['username']}")
         except smtplib.SMTPAuthenticationError:
-            st.warning(f"Authentication failed for SMTP configuration: {smtp_config['server']}, {smtp_config['username']}")
+            st.warning(f"⚠️ Authentication failed for SMTP configuration: {smtp_config['server']}, {smtp_config['username']}")
         except Exception as e:
-            st.error(f"Error sending email with SMTP configuration {smtp_config['server']}, {smtp_config['username']}: {e}")
+            st.error(f"❌ Error sending email with SMTP configuration {smtp_config['server']}, {smtp_config['username']}: {e}")
 
     if success_count > 0:
-        st.success(f"Email sent successfully!")
+        st.success(f"✅ Email sent successfully!")
 
-if st.button("Scrape Domains"):
+if st.button("🔍 Scrape Domains"):
     st.session_state.domain_data = scrape_domains(domains)
 
 show_domain_data()
