@@ -19,11 +19,30 @@ if "smtp_configs" not in st.session_state:
 if "domain_data" not in st.session_state:
     st.session_state.domain_data = []
 
+# Initialize user information
+if "user_info" not in st.session_state:
+    st.session_state.user_info = {
+        "name": "",
+        "business_name": "",
+        "website": "",
+        "business_description": "",
+        "email": "",
+        "phone_number": ""
+    }
+
 def show_settings():
     st.sidebar.title("Settings")
     openai_api_key = st.sidebar.text_input("OpenAI API Key", st.session_state.openai_api_key, type="password")
     if openai_api_key != st.session_state.openai_api_key:
         st.session_state.openai_api_key = openai_api_key
+
+    st.sidebar.subheader("User Information")
+    st.session_state.user_info["name"] = st.sidebar.text_input("Name", st.session_state.user_info["name"])
+    st.session_state.user_info["business_name"] = st.sidebar.text_input("Business Name", st.session_state.user_info["business_name"])
+    st.session_state.user_info["website"] = st.sidebar.text_input("Website", st.session_state.user_info["website"])
+    st.session_state.user_info["business_description"] = st.sidebar.text_area("Business Description", st.session_state.user_info["business_description"])
+    st.session_state.user_info["email"] = st.sidebar.text_input("Email", st.session_state.user_info["email"])
+    st.session_state.user_info["phone_number"] = st.sidebar.text_input("Phone Number", st.session_state.user_info["phone_number"])
 
     st.sidebar.subheader("SMTP Configurations")
     smtp_configs = st.session_state.smtp_configs.copy()
@@ -120,7 +139,7 @@ def scrape_domains(domains):
             emails = list(emails)
 
             # Generate personalized outreach using OpenAI API
-            prompt = f"Based on the following information about the website {domain_name}:\n\nTitle: {page_title}\nDescription: {meta_description}\nMain Text: {main_text[:500]}...\n\nCraft a personalized email outreach for a backlink opportunity. The email should be friendly, engaging, and highlight the relevance of the website's content to our business. Keep the email concise and actionable."
+            prompt = f"Based on the following information about the website {domain_name}:\n\nTitle: {page_title}\nDescription: {meta_description}\nMain Text: {main_text[:500]}...\n\nCraft a personalized email outreach for a backlink opportunity. The email should be friendly, engaging, and highlight the relevance of the website's content to our business. Keep the email concise and actionable.\n\nAdditionally, please include a signature with the following details:\n\nName: {st.session_state.user_info['name']}\nBusiness Name: {st.session_state.user_info['business_name']}\nWebsite: {st.session_state.user_info['website']}\nBusiness Description: {st.session_state.user_info['business_description']}\nEmail: {st.session_state.user_info['email']}\nPhone Number: {st.session_state.user_info['phone_number']}"
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {st.session_state.openai_api_key}"
