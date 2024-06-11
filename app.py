@@ -32,7 +32,6 @@ if "business_details" not in st.session_state:
         "contact_email": ""
     }
 
-# User's name
 st.sidebar.text_input("Your Name", key="user_name")
 
 def show_settings():
@@ -40,6 +39,8 @@ def show_settings():
     openai_api_key = st.sidebar.text_input("OpenAI API Key", st.session_state.openai_api_key, type="password")
     if openai_api_key != st.session_state.openai_api_key:
         st.session_state.openai_api_key = openai_api_key
+        import openai
+        openai.api_key = st.session_state.openai_api_key
 
     st.sidebar.subheader("SMTP Configurations")
     smtp_configs = st.session_state.smtp_configs.copy()
