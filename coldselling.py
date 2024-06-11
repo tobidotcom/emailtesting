@@ -149,8 +149,9 @@ def scrape_domains(domains):
             emails = list(emails)
 
             # Generate personalized outreach using OpenAI API
-            prompt =  prompt = f"Based on the following information:\n\nCompany Name: {company_name}\nProduct/Service Description: {product_description}\nTarget Industry: {target_industry}\n\nCraft a personalized and engaging cold email to potential customers in the {target_industry} industry. The email should introduce {company_name} and highlight the benefits of our product/service. Keep the email concise, persuasive, and actionable.\n\nAdditionally, please include a signature with the following details:\n\nName: [Your Name]\nCompany: {company_name}\nWebsite: [Your Website]\nEmail: [Your Email]\nPhone Number: [Your Phone Number]"
-                "Content-Type": "application/json"
+            prompt = f"Based on the following information:\n\nCompany Name: {st.session_state.user_info['business_name']}\nProduct/Service Description: {st.session_state.user_info['business_description']}\nTarget Industry: {domain_name}\n\nCraft a personalized and engaging cold email to potential customers in the {domain_name} industry. The email should introduce {st.session_state.user_info['business_name']} and highlight the benefits of our product/service. Keep the email concise, persuasive, and actionable.\n\nAdditionally, please include a signature with the following details:\n\nName: {st.session_state.user_info['name']}\nCompany: {st.session_state.user_info['business_name']}\nWebsite: {st.session_state.user_info['website']}\nEmail: {st.session_state.user_info['email']}\nPhone Number: {st.session_state.user_info['phone_number']}"
+            headers = {
+                "Content-Type": "application/json",
                 "Authorization": f"Bearer {st.session_state.openai_api_key}"
             }
             data = {
@@ -234,10 +235,5 @@ def send_outreach_email(domain_data, outreach_subject, outreach_email, selected_
         except Exception as e:
             st.error(f"❌ Error sending email with SMTP configuration {smtp_config['server']}, {smtp_config['username']}: {e}")
 
-    if success_count > 0:
-        st.success(f"✅ Email sent successfully!")
-
-if st.button("🔍 Scrape Domains"):
-    st.session_state.domain_data = scrape_domains(domains)
-
-show_domain_data()
+    if success_count == 0:
+        st.error("❌ Failed to send email with any SMTP configuration.")
