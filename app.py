@@ -7,71 +7,34 @@ from urllib.parse import urlparse, urljoin
 import smtplib
 from email.mime.text import MIMEText
 
-# Initialize OpenAI API key
+# Initialize session state
+if "domain_data" not in st.session_state:
+    st.session_state.domain_data = []
+if "smtp_configs" not in st.session_state:
+    st.session_state.smtp_configs = []
 if "openai_api_key" not in st.session_state:
     st.session_state.openai_api_key = ""
 
-# Initialize SMTP configurations
-if "smtp_configs" not in st.session_state:
-    st.session_state.smtp_configs = []
+# Sidebar configuration
+st.sidebar.title("Settings")
+st.sidebar.subheader("OpenAI API Key")
+openai_api_key = st.sidebar.text_input("Enter your OpenAI API key", type="password", value=st.session_state.openai_api_key)
+st.session_state.openai_api_key = openai_api_key
 
-# Initialize domain data
-if "domain_data" not in st.session_state:
-    st.session_state.domain_data = []
-
-# Initialize user information
-if "user_info" not in st.session_state:
-    st.session_state.user_info = {
-        "name": "",
-        "business_name": "",
-        "website": "",
-        "business_description": "",
-        "email": "",
-        "phone_number": ""
+st.sidebar.subheader("SMTP Configuration")
+smtp_configs = st.sidebar.text_area("Enter SMTP configurations (one per line, format: smtp_server,smtp_port,email,password)")
+st.session_state.smtp_configs = [
+    {
+        "smtp_server": config.split(",")[0],
+        "smtp_port": int(config.split(",")[1]),
+        "email": config.split(",")[2],
+        "password": config.split(",")[3]
     }
+    for config in smtp_configs.split("\n") if config.strip()
+]
 
-def show_settings():
-    st.sidebar.title("Settings")
-
-    st.sidebar.subheader("OpenAI API Key")
-    openai_api_key = st.sidebar.text_input("Enter your OpenAI API key", type="password", value=st.session_state.openai_api_key)
-    st.session_state.openai_api_key = openai_api_key
-
-    st.sidebar.subheader("SMTP Configuration")
-    smtp_configs = st.sidebar.text_area("Enter SMTP configurations (one per line, format: smtp_server,smtp_port,email,password)", value="\n".join([f"{config['smtp_server']},{config['smtp_port']},{config['email']},{config['password']}" for config in st.session_state.smtp_configs]))
-    st.session_state.smtp_configs = [
-        {
-            "smtp_server": config.split(",")[0],
-            "smtp_port": int(config.split(",")[1]),
-            "email": config.split(",")[2],
-            "password": config.split(",")[3]
-        }
-        for config in smtp_configs.split("\n") if config.strip()
-    ]
-
-    st.sidebar.subheader("User Information")
-    st.session_state.user_info["name"] = st.sidebar.text_input("Name", value=st.session_state.user_info["name"])
-    st.session_state.user_info["business_name"] = st.sidebar.text_input("Business Name", value=st.session_state.user_info["business_name"])
-    st.session_state.user_info["website"] = st.sidebar.text_input("Website", value=st.session_state.user_info["website"])
-    st.session_state.user_info["business_description"] = st.sidebar.text_area("Business Description", value=st.session_state.user_info["business_description"])
-    st.session_state.user_info["email"] = st.sidebar.text_input("Email", value=st.session_state.user_info["email"])
-    st.session_state.user_info["phone_number"] = st.sidebar.text_input("Phone Number", value=st.session_state.user_info["phone_number"])
-
-st.set_page_config(page_title="Domain Scraper", page_icon="🌐", layout="wide")
-st.markdown("""
-<style>
-.css-18e3th9 {
-    padding-top: 1rem;
-    padding-bottom: 10rem;
-    background-color: #e6f2ff;
-}
-</style>
-""", unsafe_allow_html=True)
-
-show_settings()
-
-st.title("🔍 Domain Scraper with Email Extraction and Personalized Outreach")
-
+# Main app
+st.title("Domain Scraper with Email Extraction and Personalized Outreach")
 domains = st.text_area("Enter domains (one per line)")
 
 def scrape_domains(domains):
@@ -83,21 +46,19 @@ def scrape_domains(domains):
                 url = f"https://{domain}"
             else:
                 url = domain
-
             response = requests.get(url)
-            response.raise_for_status()  # Raise an exception for non-2xx status codes
+            response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
-
             domain_name = parsed_url.netloc
 
-            # Handle cases where elements are not found
+            # Extract page title, meta description, and main text
             title_element = soup.find("title")
             if title_element:
                 page_title = title_element.get_text()
             else:
                 page_title = ""
 
-            meta_description_element = soup.find("meta", attrs={"name":"description"})
+            meta_description_element = soup.find("meta", attrs={"name": "description"})
             if meta_description_element:
                 meta_description = meta_description_element.get("content", "")
             else:
@@ -105,26 +66,13 @@ def scrape_domains(domains):
 
             main_text = " ".join([p.get_text() for p in soup.find_all("p")])
 
-            # Extract email addresses using multiple methods
+            # Extract email addresses
             emails = set()
-
-            # Method 1: Regular expression on HTML content
             emails.update(re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", response.text))
-
-            # Method 2: mailto: links
             mailto_links = soup.find_all("a", href=re.compile(r"mailto:"))
             emails.update([link.get("href").replace("mailto:", "") for link in mailto_links])
+            emails.update(re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", main_text))
 
-            # Method 3: Text content of HTML elements
-            for element in soup.find_all(string=re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"), recursive=True):
-                emails.add(element)
-
-            # Method 4: HTML attributes
-            for tag in soup.find_all(True):
-                for attr in tag.attrs.values():
-                    emails.update(re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", str(attr)))
-
-            # Method 5: Find "Contact Us" page and extract emails
             contact_links = soup.find_all("a", string=re.compile(r"Contact( Us)?", re.IGNORECASE))
             for link in contact_links:
                 contact_url = urljoin(url, link.get("href"))
@@ -136,7 +84,6 @@ def scrape_domains(domains):
                 except Exception as e:
                     st.warning(f"⚠️ Error retrieving contact page for {domain_name}: {e}")
 
-            # Convert the set to a list
             emails = list(emails)
 
             # Generate personalized outreach using OpenAI API
@@ -176,6 +123,7 @@ def scrape_domains(domains):
                 "outreach_email": outreach_email,
                 "suggested_email": suggested_email
             })
+
         except requests.exceptions.RequestException as e:
             st.error(f"❌ Error scraping data for {domain}: {e}")
             logging.error(f"Error scraping {domain}: {e}")
@@ -197,36 +145,45 @@ def show_domain_data():
     else:
         st.warning("No domain data available. Please scrape domains first.")
 
-def send_outreach_email(domain_data, outreach_subject, outreach_email, selected_email):
+def show_outreach_emails():
+    st.subheader("Review and Edit Outreach Emails")
+    for idx, data in enumerate(st.session_state.domain_data):
+        st.write(f"**Domain:** {data['domain']}")
+        edited_email = st.text_area(f"Outreach Email {idx+1}", value=data["outreach_email"], height=200)
+        edited_recipient = st.text_input(f"Recipient Email {idx+1}", value=data["suggested_email"])
+        st.session_state.domain_data[idx]["outreach_email"] = edited_email
+        st.session_state.domain_data[idx]["suggested_email"] = edited_recipient
+        st.write("---")
+
+def send_outreach_email(domain_data):
     if not st.session_state.smtp_configs:
         st.warning("Please configure SMTP settings in the sidebar.")
         return
 
     for data in domain_data:
-        if selected_email == data["suggested_email"]:
-            msg = MIMEText(outreach_email)
-            msg["Subject"] = outreach_subject
-            msg["From"] = st.session_state.smtp_configs[0]["email"]
-            msg["To"] = selected_email
+        outreach_email = data["outreach_email"]
+        recipient_email = data["suggested_email"]
+        msg = MIMEText(outreach_email)
+        msg["Subject"] = outreach_subject
+        msg["From"] = st.session_state.smtp_configs[0]["email"]
+        msg["To"] = recipient_email
 
-            try:
-                with smtplib.SMTP(st.session_state.smtp_configs[0]["smtp_server"], st.session_state.smtp_configs[0]["smtp_port"]) as smtp:
-                    smtp.starttls()
-                    smtp.login(st.session_state.smtp_configs[0]["email"], st.session_state.smtp_configs[0]["password"])
-                    smtp.send_message(msg)
-                st.success(f"Email sent successfully to {selected_email} for {data['domain']}")
-            except Exception as e:
-                st.error(f"Error sending email to {selected_email} for {data['domain']}: {e}")
+        try:
+            with smtplib.SMTP(st.session_state.smtp_configs[0]["smtp_server"], st.session_state.smtp_configs[0]["smtp_port"]) as server:
+                server.starttls()
+                server.login(st.session_state.smtp_configs[0]["email"], st.session_state.smtp_configs[0]["password"])
+                server.send_message(msg)
+                st.success(f"✅ Outreach email sent to {recipient_email} for {data['domain']}")
+        except Exception as e:
+            st.error(f"❌ Error sending email to {recipient_email} for {data['domain']}: {e}")
 
 if st.button("Scrape Domains"):
     st.session_state.domain_data = scrape_domains(domains)
-    show_domain_data()
 
 show_domain_data()
+show_outreach_emails()
 
 outreach_subject = st.text_input("Outreach Email Subject")
-outreach_email = st.text_area("Outreach Email Content")
-selected_email = st.selectbox("Select Email for Outreach", [data["suggested_email"] for data in st.session_state.domain_data])
 
-if st.button("Send Outreach Email"):
-    send_outreach_email(st.session_state.domain_data, outreach_subject, outreach_email, selected_email)
+if st.button("Send Outreach Emails"):
+    send_outreach_email(st.session_state.domain_data)
