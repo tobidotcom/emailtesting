@@ -150,7 +150,7 @@ def scrape_domains(domains):
 
             # Generate personalized outreach using OpenAI API
             prompt =  prompt = f"Based on the following information:\n\nCompany Name: {company_name}\nProduct/Service Description: {product_description}\nTarget Industry: {target_industry}\n\nCraft a personalized and engaging cold email to potential customers in the {target_industry} industry. The email should introduce {company_name} and highlight the benefits of our product/service. Keep the email concise, persuasive, and actionable.\n\nAdditionally, please include a signature with the following details:\n\nName: [Your Name]\nCompany: {company_name}\nWebsite: [Your Website]\nEmail: [Your Email]\nPhone Number: [Your Phone Number]"
-                "Content-Type": "application/json",
+                "Content-Type": "application/json"
                 "Authorization": f"Bearer {st.session_state.openai_api_key}"
             }
             data = {
