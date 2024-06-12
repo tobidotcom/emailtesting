@@ -1,45 +1,35 @@
 import streamlit as st
-from yelp_fusion import client
+from yelpapi import YelpAPI
 
-# User interface
-st.title("Local Business Finder")
+# Initialize the YelpAPI object
+api_key = st.secrets["yelp_api_key"]  # Replace with your actual Yelp API key
+with YelpAPI(api_key) as yelp_api:
 
-# Sidebar for API key input
-st.sidebar.title("Settings")
-yelp_api_key = st.sidebar.text_input("Enter your Yelp API key:", type="password")
+    # Create a search form
+    st.title("Yelp Business Search")
+    term = st.text_input("Search term (e.g., restaurants, bars)")
+    location = st.text_input("Location (e.g., New York City, NY)")
+    radius = st.number_input("Search radius (in meters)", min_value=0, value=5000, step=500)
+    limit = st.number_input("Number of results", min_value=1, max_value=50, value=10, step=1)
 
-if yelp_api_key:
-    yelp_client = client.YelpFusionClient(yelp_api_key)
+    # Perform the search when the user clicks the button
+    if st.button("Search"):
+        search_args = {
+            'term': term,
+            'location': location,
+            'radius': radius,
+            'limit': limit
+        }
 
-    location = st.text_input("Enter a location (city, zip code, or address):")
-    category = st.text_input("Enter a business category (e.g., restaurants, bars, etc.):")
-    search_button = st.button("Search")
+        search_results = yelp_api.search_query(**search_args)
 
-    # Function to fetch business data from Yelp API
-    def fetch_businesses(location, category):
-        try:
-            params = {
-                "term": category,
-                "location": location,
-                "sort_by": "best_match",
-                "limit": 50,
-            }
-            response = yelp_client.search_query(**params)
-            businesses = response.businesses
-            return businesses
-        except Exception as e:
-            st.error(f"An error occurred: {e}")
-            return []
-
-    # Display search results
-    if search_button:
-        businesses = fetch_businesses(location, category)
-        if businesses:
-            for business in businesses:
-                st.write(f"**{business.name}**")
-                st.write(f"Rating: {business.rating} ({business.review_count} reviews)")
-                st.write(f"Address: {business.location.display_address}")
-                st.write(f"Phone: {business.display_phone}")
+        # Display the search results
+        if search_results['total'] > 0:
+            st.write(f"Found {search_results['total']} businesses:")
+            for business in search_results['businesses']:
+                st.write(f"**Name:** {business['name']}")
+                st.write(f"**Rating:** {business['rating']} ({business['review_count']} reviews)")
+                st.write(f"**Address:** {' '.join(business['location']['display_address'])}")
                 st.write("---")
-else:
-    st.warning("Please enter your Yelp API key in the sidebar settings.")
+        else:
+            st.write("No businesses found.")
