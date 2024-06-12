@@ -169,6 +169,10 @@ def main():
 
     st.title("🔍 Domain Scraper with Email Extraction and Personalized Outreach")
 
+    # Initialize openai_api_key
+    if "openai_api_key" not in st.session_state:
+        st.session_state.openai_api_key = ""
+
     # Show settings
     st.sidebar.title("Settings")
     st.sidebar.subheader("OpenAI API Key")
