@@ -2,7 +2,7 @@ import streamlit as st
 from yelpapi import YelpAPI
 
 def main():
-    # Get the Yelp API key from the app settings
+    # Get the Yelp API key from the secrets.toml file
     api_key = st.secrets["yelp_api_key"]
 
     # Initialize the YelpAPI object
@@ -38,10 +38,5 @@ def main():
                 st.write("No businesses found.")
 
 if __name__ == "__main__":
-    # Set the Yelp API key in the app settings
     st.set_page_config(page_title="Yelp Business Search", page_icon=":mag:")
-    st.sidebar.title("Settings")
-    api_key = st.sidebar.text_input("Yelp API Key", type="password")
-    st.secrets["yelp_api_key"] = api_key
-
     main()
