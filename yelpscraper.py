@@ -33,6 +33,7 @@ def main():
                         st.write(f"**Name:** {business['name']}")
                         st.write(f"**Rating:** {business['rating']} ({business['review_count']} reviews)")
                         st.write(f"**Address:** {' '.join(business['location']['display_address'])}")
+                        st.write(f"**Domains:** {', '.join([category['title'] for category in business['categories']])}")
                         st.write("---")
                 else:
                     st.write("No businesses found.")
