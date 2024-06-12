@@ -19,12 +19,12 @@ class SMTPConfig(BaseModel):
     password: str
 
 class UserInfo(BaseModel):
-    name: str
-    business_name: str
-    website: str
-    business_description: str
-    email: EmailStr
-    phone_number: str
+    name: str = ""
+    business_name: str = ""
+    website: str = ""
+    business_description: str = ""
+    email: EmailStr = ""
+    phone_number: str = ""
 
     @validator('website')
     def validate_website(cls, value):
